@@ -24,3 +24,5 @@ ENV DEBUG_PORT=*:5005
 
 EXPOSE 5005/tcp
 ENTRYPOINT ["/opt/keycloak/bin/kc.sh", "start-dev"]
+
+# then run $ docker exec -i landonline-auth bash < setup_realm.sh

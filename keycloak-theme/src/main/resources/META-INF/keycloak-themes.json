@@ -1,0 +1,6 @@
+{
+  "themes": [{
+    "name" : "landonline",
+    "types": [ "login" ]
+  }]
+}

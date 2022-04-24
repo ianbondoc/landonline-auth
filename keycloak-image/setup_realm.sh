@@ -1,8 +1,9 @@
+#!/usr/bin/env bash
 
-set -x
-
-KEYCLOAK_HOME=/c/Users/ibondoc/code/tools/keycloak-17.0.1
+#KEYCLOAK_HOME=/c/Users/ibondoc/code/tools/keycloak-17.0.1
+KEYCLOAK_HOME=/opt/keycloak
 KCADM=$KEYCLOAK_HOME/bin/kcadm.sh
+JQ=/tmp/keycloak/jq
 KC_HOSTNAME=localhost
 KEYCLOAK_ADMIN=admin
 KEYCLOAK_ADMIN_PASSWORD=admin
@@ -16,20 +17,29 @@ DB_PASSWORD=in4mix
 SERVICE_CLIENT_SECRET=pp8k7aPN2poVH1ypexeF2CDq2SpZ34WH
 
 # login
-$KCADM config credentials --server $AUTH_URL \
-    --realm master --user $KEYCLOAK_ADMIN \
-    --password $KEYCLOAK_ADMIN_PASSWORD
+while : ; do
+    $KCADM config credentials --server $AUTH_URL \
+        --realm master --user $KEYCLOAK_ADMIN \
+        --password $KEYCLOAK_ADMIN_PASSWORD
+    if [ $? -eq 0 ]; then
+        break
+    else
+        sleep 5
+    fi
+done
 
-# create realm
+set -x
+
+# create realm and grab the id for creating components (id here is different from realm name)
 REALM_ID=$($KCADM create realms -s realm=$REALM \
     -s enabled=true \
     -s loginWithEmailAllowed=false \
-    -s loginTheme=linz \
+    -s loginTheme=landonline \
     -s browserSecurityHeaders.contentSecurityPolicy="frame-src 'self'; frame-ancestors 'self' $FRONTEND_URL; object-src 'none';" \
-    -o | jq -r '.id')
+    -o | $JQ -r '.id')
 
 # grab admin's user id
-USER_ID=$($KCADM get users -r master | jq -r '.[0].id')
+USER_ID=$($KCADM get users -r master | $JQ -r '.[0].id')
 
 # update admin user with email (and name)
 $KCADM update users/$USER_ID -r master \

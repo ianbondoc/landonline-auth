@@ -1,0 +1,155 @@
+html {
+    font-family: Open Sans, system-ui, sans-serif;
+    font-feature-settings: "kern" 1, "kern";
+    font-kerning: normal;
+    text-rendering: optimizeLegibility;
+    color: #2a292c;
+    font-size: 16px;
+    font-style: normal;
+    font-weight: 300;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -webkit-text-size-adjust: 100%;
+}
+
+a {
+    color: #0096cc;
+    font-weight: 400;
+    text-underline-offset: 0;
+    text-underline-position: under;
+}
+
+.page {
+    height: 100vh;
+    margin: 0;
+    display: flex;
+}
+
+.image-section {
+    display: none;
+    height: 100vh;
+    width: 50vw;
+    background-image: url("../img/splash.jpg");
+    background-size: cover;
+    background-position: center center;
+}
+
+.form-section {
+    height: 100vh;
+    width: 100vw;
+
+    display: flex;
+    justify-content: center;
+
+    overflow-y: scroll;
+}
+
+.form-column {
+    max-width: 480px;
+    padding-bottom: 1.5rem;
+}
+
+.form-column > div {
+    margin-top: 1.5rem;
+    margin-left: 24px;
+    margin-right: 24px;
+}
+
+.header-row h1 {
+    font-size: 2.75rem;
+    font-weight: 300;
+    color: #017a76;
+    text-align: center;
+}
+
+.input-row {
+    display: flex;
+    flex-direction: column;
+    font-size: .875rem;
+    font-weight: 600;
+    color: #004b50;
+}
+
+.input-row label {
+    margin-bottom: 4px;
+}
+
+.input-row input[type=text], input[type=password] {
+    padding: 0 0.75rem;
+    border: .06rem solid #beb9b4;
+    border-radius: 3px;
+    box-sizing: border-box;
+    color: #2a292c;
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 48px;
+    min-height: 48px;
+    transition: border .3s cubic-bezier(1, 0, 0, 1);
+    width: 100%;
+}
+
+.terms-row {
+    padding: 0 .5rem;
+}
+
+.buttons-row {
+    display: grid;
+    grid-gap: 1rem;
+}
+
+.button {
+    line-height: 40px;
+    font-size: 1rem;
+    font-weight: 700;
+    border-radius: 3px;
+    text-align: center;
+}
+
+.button-primary {
+    color: #fff;
+    background-color: #007198;
+    border: 2px solid #007198;
+}
+
+.button-secondary {
+    color: #007198;
+    background-color: #fff;
+    border: 2px solid #007198;
+}
+
+.notices-row {
+    background: #d8e5f9;
+    border-left: 3rem solid;
+    border-color: #3a7cdf;
+    border-radius: 3px;
+    color: #6b6966;
+    padding: .75rem 3rem .75rem .75rem;
+    position: relative;
+}
+
+.notices-row > .info-icon {
+    max-width: 32px;
+    max-height: 32px;
+    display: inline-block;
+    height: 100%;
+    width: 100%;
+    position: absolute;
+    left: -40px;
+    top: .5rem;
+    fill: #fff;
+}
+
+@media only screen and (min-width: 768px) {
+    .image-section {
+        display: block;
+    }
+
+    .form-section {
+        width: 50vw
+    }
+
+    .buttons-row {
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: auto auto;
+    }
+}
