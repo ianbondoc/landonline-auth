@@ -8,6 +8,7 @@ import nz.govt.linz.DatabaseConfiguration.Companion.PASSWORD
 import nz.govt.linz.DatabaseConfiguration.Companion.URL
 import nz.govt.linz.DatabaseConfiguration.Companion.USERNAME
 import nz.govt.linz.ifx.InformixPlatform
+import nz.govt.linz.service.UserService
 import org.keycloak.component.ComponentModel
 import org.keycloak.component.ComponentValidationException
 import org.keycloak.models.KeycloakSession
@@ -29,7 +30,8 @@ class LinzUserStorageProviderFactory : UserStorageProviderFactory<LinzUserStorag
             database = createDatabase(checkNotNull(model).getDatabaseConfiguration())
         }
         System.err.println("LinzUserStorageProviderFactory.create")
-        return LinzUserStorageProvider(checkNotNull(session), checkNotNull(model), database)
+        session?.setAttribute(UserService.ATTRIBUTE, UserService(database))
+        return LinzUserStorageProvider(checkNotNull(session), checkNotNull(model))
     }
 
     override fun getConfigProperties(): List<ProviderConfigProperty> {

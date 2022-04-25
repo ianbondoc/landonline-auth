@@ -1,6 +1,6 @@
 package nz.govt.linz
 
-import io.ebean.Database
+import nz.govt.linz.service.AuthStatus
 import nz.govt.linz.service.UserService
 import org.keycloak.component.ComponentModel
 import org.keycloak.credential.CredentialInput
@@ -18,8 +18,7 @@ import java.util.stream.Stream
 // TODO: Review all available search/query functions
 class LinzUserStorageProvider(
     private val session: KeycloakSession,
-    private val model: ComponentModel,
-    database: Database
+    private val model: ComponentModel
 ) :
     UserStorageProvider, UserLookupProvider.Streams, UserQueryProvider.Streams, CredentialInputUpdater.Streams,
     CredentialInputValidator {
@@ -29,22 +28,22 @@ class LinzUserStorageProvider(
     private val userService: UserService
 
     init {
-        log.info("CREATING LinzUserStorageProvider : ${session::class.qualifiedName}")
-        userService = UserService(database)
+        log.info("CREATING LinzUserStorageProvider : $session : ${session::class.qualifiedName}")
+        userService = session.getAttribute(UserService.ATTRIBUTE, UserService::class.java)
     }
 
     override fun supportsCredentialType(credentialType: String?): Boolean {
-        log.info("supportsCredentialType: $credentialType")
+        log.info("supportsCredentialType: $session : $credentialType")
         return PasswordCredentialModel.TYPE == credentialType
     }
 
     override fun isConfiguredFor(realm: RealmModel?, user: UserModel?, credentialType: String?): Boolean {
-        log.info("isConfiguredFor: $realm, $user, $credentialType")
+        log.info("isConfiguredFor: $session : $realm, $user, $credentialType")
         return supportsCredentialType(credentialType)
     }
 
     override fun isValid(realm: RealmModel?, user: UserModel?, input: CredentialInput?): Boolean {
-        log.info("isValid: $realm : $user : $input")
+        log.info("isValid: $session : $realm : $user : $input")
         if (!(supportsCredentialType(input?.type) && input is UserCredentialModel)) {
             return false
         }
@@ -52,30 +51,41 @@ class LinzUserStorageProvider(
 
         val userId = StorageId.externalId(user.id)
         val password = input.challengeResponse
-        log.info("Credentials: $userId : $password")
-        return userService.authenticate(userId, password)
+        val authStatus = userService.authenticate(userId, password)
+        log.info("Result: $authStatus")
+
+        return when (authStatus) {
+            AuthStatus.LOGIN_AUTHORISED,
+                // this just means password expired but still allowed due to grace period
+            AuthStatus.PASSWORD_PAST_EXPIRATION_DATE,
+                // this means user exceeded grace period and is required to change password
+                // this will be handled later as required actions
+            AuthStatus.NO_GRACE_LOGINS_LEFT -> true
+            else -> false
+        }
     }
 
     override fun updateCredential(realm: RealmModel?, user: UserModel?, input: CredentialInput?): Boolean {
-        log.info("updateCredential: $realm : $user : $input")
-        TODO("Not yet implemented")
+        log.info("updateCredential: $session : $realm : $user : $input")
+        userService.changePassword(requireNotNull(user).username, requireNotNull(input).challengeResponse)
+        return true
     }
 
     override fun getUserById(realm: RealmModel?, id: String?): UserModel? {
-        log.info("getUserById: $realm : $id")
+        log.info("getUserById: $session : $realm : $id")
         return getUserByUsername(realm, StorageId.externalId(id))
     }
 
     override fun getUserByUsername(realm: RealmModel?, username: String?): UserModel? {
-        log.info("getUserByUsername: $realm : $username")
-        return userService.findUserById(checkNotNull(username))
-            ?.let { LinzUserAdapter(session, checkNotNull(realm), model, it) }
+        log.info("getUserByUsername: $session : $realm : $username")
+        return userService.findUserById(requireNotNull(username))
+            ?.let { LinzUserAdapter(session, requireNotNull(realm), model, it) }
     }
 
     override fun getUserByEmail(realm: RealmModel?, email: String?): UserModel? {
-        log.info("getUserByEmail: $realm : $email")
-        return userService.findUserByEmail(checkNotNull(email))
-            ?.let { LinzUserAdapter(session, checkNotNull(realm), model, it) }
+        log.info("getUserByEmail: $session : $realm : $email")
+        return userService.findUserByEmail(requireNotNull(email))
+            ?.let { LinzUserAdapter(session, requireNotNull(realm), model, it) }
     }
 
     override fun getUsersCount(realm: RealmModel?, search: String?, groupIds: Set<String>?): Int {
@@ -87,13 +97,14 @@ class LinzUserStorageProvider(
     }
 
     override fun getUsersStream(realm: RealmModel?, firstResult: Int?, maxResults: Int?): Stream<UserModel> {
-        log.info("getUsersStream: $realm : $firstResult : $maxResults")
+        log.info("getUsersStream: $session : $realm : $firstResult : $maxResults")
         return userService.getUsers(firstResult ?: -1, maxResults ?: -1)
-            .map { LinzUserAdapter(session, checkNotNull(realm), model, it) }
+            .map { LinzUserAdapter(session, requireNotNull(realm), model, it) }
     }
 
     override fun getUsersCount(realm: RealmModel?, search: String?): Int {
-        return userService.countUsersLikeUserId(checkNotNull(search))
+        log.info("getUsersCount: $session : $realm : $search")
+        return userService.countUsersLikeUserId(requireNotNull(search))
     }
 
     override fun searchForUserStream(
@@ -102,9 +113,9 @@ class LinzUserStorageProvider(
         firstResult: Int?,
         maxResults: Int?
     ): Stream<UserModel> {
-        log.info("searchForUserStream(search): $realm : $search : $firstResult : $maxResults")
-        return userService.getUsersLikeUserId(checkNotNull(search), firstResult ?: -1, maxResults ?: -1)
-            .map { LinzUserAdapter(session, checkNotNull(realm), model, it) }
+        log.info("searchForUserStream(search): $session : $realm : $search : $firstResult : $maxResults")
+        return userService.getUsersLikeUserId(requireNotNull(search), firstResult ?: -1, maxResults ?: -1)
+            .map { LinzUserAdapter(session, requireNotNull(realm), model, it) }
     }
 
     override fun getUsersCount(realm: RealmModel?, params: Map<String, String>?): Int {
@@ -117,9 +128,9 @@ class LinzUserStorageProvider(
         firstResult: Int?,
         maxResults: Int?
     ): Stream<UserModel> {
-        log.info("searchForUserStream(params): $realm : $params : $firstResult : $maxResults")
+        log.info("searchForUserStream(params): $session : $realm : $params : $firstResult : $maxResults")
         return userService.getUsers(firstResult ?: -1, maxResults ?: -1)
-            .map { LinzUserAdapter(session, checkNotNull(realm), model, it) }
+            .map { LinzUserAdapter(session, requireNotNull(realm), model, it) }
     }
 
     override fun getGroupMembersStream(
@@ -128,7 +139,7 @@ class LinzUserStorageProvider(
         firstResult: Int?,
         maxResults: Int?
     ): Stream<UserModel> {
-        log.info("getGroupMembersStream: $realm : $group : $firstResult : $maxResults")
+        log.info("getGroupMembersStream: $session : $realm : $group : $firstResult : $maxResults")
         TODO("Not yet implemented")
     }
 
@@ -138,7 +149,7 @@ class LinzUserStorageProvider(
         firstResult: Int?,
         maxResults: Int?
     ): Stream<UserModel> {
-        log.info("getRoleMembersStream: $realm : $role : $firstResult : $maxResults")
+        log.info("getRoleMembersStream: $session : $realm : $role : $firstResult : $maxResults")
         return super.getRoleMembersStream(realm, role, firstResult, maxResults)
     }
 
@@ -147,16 +158,16 @@ class LinzUserStorageProvider(
         attrName: String?,
         attrValue: String?
     ): Stream<UserModel> {
-        log.info("searchForUserByUserAttributeStream: $realm : $attrName : $attrValue")
+        log.info("searchForUserByUserAttributeStream: $session : $realm : $attrName : $attrValue")
         TODO("Not yet implemented")
     }
 
     override fun disableCredentialType(realm: RealmModel?, user: UserModel?, credentialType: String?) {
-        log.info("disableCredentialType: $realm : $user : $credentialType")
+        log.info("disableCredentialType: $session : $realm : $user : $credentialType")
     }
 
     override fun getDisableableCredentialTypesStream(realm: RealmModel?, user: UserModel?): Stream<String> {
-        log.info("getDisableableCredentialTypes: $realm : $user")
+        log.info("getDisableableCredentialTypes: $session : $realm : $user")
         return Stream.of()
     }
 

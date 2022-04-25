@@ -1,8 +1,13 @@
 package nz.govt.linz.service
 
+import com.google.common.io.BaseEncoding
+import io.ebean.DB
 import io.ebean.Database
 import io.ebean.ExpressionList
 import io.ebean.annotation.DbEnumValue
+import io.ebean.annotation.Transactional
+import io.ebeaninternal.api.ScopedTransaction
+import nz.govt.linz.jpa.LockedOutStatus
 import nz.govt.linz.jpa.LoginFlag
 import nz.govt.linz.jpa.LoginType
 import nz.govt.linz.jpa.User
@@ -15,7 +20,7 @@ class UserService(private val database: Database) {
 
     private val encryptionService = LegacyEncryptionService()
 
-    private fun checkLogin(username: String, password: String): AuthResult {
+    fun authenticate(username: String, password: String): AuthStatus {
         log.info("Authenticating $username | $password")
 
         val encryptedPassword = encryptionService.encrypt(username, password)
@@ -51,28 +56,52 @@ class UserService(private val database: Database) {
                 }
             }
         }
-        return result
+        return AuthStatus.fromDbValue(result.status)
     }
 
-    fun authenticate(username: String, password: String): Boolean {
-        val result = checkLogin(username, password)
-        when (result.status) {
-            AuthStatus.LOGIN_AUTHORISED.dbValue -> {
-                // No problem
-                return true
-            }
-            AuthStatus.PASSWORD_PAST_EXPIRATION_DATE.dbValue -> {
-                // Password expired but grace logins remain
-                return false
-            }
-            AuthStatus.NO_GRACE_LOGINS_LEFT.dbValue -> {
-                // Password expired and must be changed
-                return false
-            }
-            else -> {
-                return false
-            }
+    @Transactional
+    fun changePassword(username: String, password: String) {
+        (DB.currentTransaction() as ScopedTransaction).markNotQueryOnly()
+
+        val hexPassword = BaseEncoding.base16().encode(password.toByteArray())
+        val encryptedPassword = encryptionService.encrypt(username, password)
+
+        try {
+
+            setUserForAudit(username)
+
+            val query = """
+            execute procedure cp_cse_change_pwd (
+                al_key = TODAY::INT,
+                ast_userid = :username,
+                ast_hexoldpasswd = NULL,
+                ast_hexnewpasswd = cf_cse_enc_encrypt(TODAY, :hexPassword),
+                ast_encpasswd = :encryptedPassword,
+                ast_mode = 'ADMIN_MODIFY'
+            );
+            """.trimIndent()
+
+            // Return value is the user's email address, which is not required
+            database.sqlUpdate(query)
+                .setParameter("username", username)
+                .setParameter("hexPassword", hexPassword)
+                .setParameter("encryptedPassword", encryptedPassword)
+                .execute()
+        } finally {
+            setUserForAudit(null)
         }
+    }
+
+    /**
+     * Set the username in the DB session, which is used for auditing purposes. The firm is set
+     * as NULL in all cases, and this can be changed if and when we need to know the firm for
+     * a proc (and don't want to change the proc to not require it) as that is only used in a
+     * couple of places.
+     */
+    private fun setUserForAudit(username: String?) {
+        database.sqlUpdate("execute procedure cp_ccl_setUserIdAndFirmId(avc_user_id = :user, avc_firm_id = null)")
+            .setParameter("user", username)
+            .execute()
     }
 
     fun getUserById(userId: String): User =
@@ -89,8 +118,8 @@ class UserService(private val database: Database) {
     fun getUsers(firstResult: Int, maxResult: Int): Stream<User> =
         database.find(User::class.java).where()
             .isValidUser()
-            .let { if(firstResult < 0) it else it.setFirstRow(firstResult) }
-            .let { if(maxResult < 0) it else it.setMaxRows(maxResult) }
+            .let { if (firstResult < 0) it else it.setFirstRow(firstResult) }
+            .let { if (maxResult < 0) it else it.setMaxRows(maxResult) }
             .findList().stream()
 
     fun countUsersLikeUserId(search: String): Int =
@@ -109,6 +138,16 @@ class UserService(private val database: Database) {
 
     private fun <T> ExpressionList<T>.isValidUser() =
         eq("type", "PERS").isIn("loginType", LoginType.INTERNAL, LoginType.EXTERNAL)
+
+    @Transactional
+    fun setRequiredChangePassword(userId: String) {
+        database.update(User::class.java).set("lockedOutStatus", LockedOutStatus.MUST_CHANGE_PASSWORD_ON_NEXT_LOGIN)
+            .where().idEq(userId).update()
+    }
+
+    companion object {
+        const val ATTRIBUTE = "session.userService"
+    }
 }
 
 class AuthResult(
@@ -123,11 +162,12 @@ enum class AuthStatus(@get:DbEnumValue val dbValue: String) {
     LOGIN_AUTHORISED("AUTH"),
 
     /*
-     * login is still authorised, buf it all grace logins have
+     * login is still authorised, but if all grace logins have
      * been used, account's locked flag is set, and will
      * prevent subsequent logins until the password is reset
      */
     PASSWORD_PAST_EXPIRATION_DATE("PSWE"),
+
     NO_GRACE_LOGINS_LEFT("NOGR"),
     BAD_LOGIN_COUNT_EXCEEDED("FLCE"),
     USER_HAS_BEEN_DEACTIVATED("DACT"),
@@ -142,6 +182,12 @@ enum class AuthStatus(@get:DbEnumValue val dbValue: String) {
     NOT_PERMITTED_TO_LOGIN("NOLG"),
 
     // not returned by stored proc
-    NOT_ASSOCIATED_WITH_ANY_FIRM("NFRM")
+    NOT_ASSOCIATED_WITH_ANY_FIRM("NFRM");
+
+    companion object {
+        private val reverseLookup = values().associateBy { it.dbValue }
+        fun fromDbValue(dbValue: String): AuthStatus =
+            reverseLookup[dbValue] ?: throw EnumConstantNotPresentException(AuthStatus::class.java, dbValue)
+    }
 }
 
