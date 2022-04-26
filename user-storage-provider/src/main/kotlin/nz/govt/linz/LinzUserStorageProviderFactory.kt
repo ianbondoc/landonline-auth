@@ -55,6 +55,28 @@ class LinzUserStorageProviderFactory : UserStorageProviderFactory<LinzUserStorag
         }
     }
 
+    override fun onUpdate(
+        session: KeycloakSession?,
+        realm: RealmModel?,
+        oldModel: ComponentModel?,
+        newModel: ComponentModel?
+    ) {
+        if (newModel != oldModel) {
+            System.err.println("Creating new database")
+            if (!this::database.isInitialized) {
+                database.shutdown(true, false)
+            }
+            try {
+                database = createDatabase(checkNotNull(newModel).getDatabaseConfiguration())
+            } catch (e: Exception) {
+                database = createDatabase(checkNotNull(oldModel).getDatabaseConfiguration())
+                throw e
+            }
+        } else {
+            System.err.println("Ignoring update, no change")
+        }
+    }
+
     override fun getId(): String {
         System.err.println("LinzUserStorageProviderFactory.getId")
         return PROVIDER_ID
