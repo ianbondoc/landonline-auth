@@ -51,7 +51,7 @@ class FirmUser(
 
     val privileges: List<String>
         get() = privilegesXml?.let {
-            Regex("privilege_name=\"(.+)\"").findAll(privilegesXml).map { it.groupValues[1] }
+            Regex("privilege_name=\"(.+)\"").findAll(privilegesXml).map { it.groupValues[1].uppercase() }
                 .distinct().toList()
         } ?: emptyList()
 }

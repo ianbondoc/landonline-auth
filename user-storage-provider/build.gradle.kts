@@ -1,5 +1,6 @@
 plugins {
     kotlin("jvm") version "1.6.20"
+    id("org.jetbrains.kotlin.plugin.jpa") version "1.6.20"
     id("io.ebean") version "13.3.0"
 }
 
@@ -16,6 +17,9 @@ dependencies {
     // this was added for debugging purpose only
     compileOnly("org.keycloak:keycloak-services:17.0.1")
     compileOnly("org.keycloak:keycloak-common:17.0.1")
+    compileOnly("org.keycloak:keycloak-model-jpa:17.0.1")
+    compileOnly("org.keycloak:keycloak-model-infinispan:17.0.1")
+
     implementation("io.ebean:ebean:13.3.0")
     implementation("commons-codec:commons-codec:1.15")
     runtimeOnly("com.ibm.informix:jdbc:4.50.7.1")

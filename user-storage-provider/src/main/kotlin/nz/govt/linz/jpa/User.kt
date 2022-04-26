@@ -1,6 +1,7 @@
 package nz.govt.linz.jpa
 
 import io.ebean.annotation.Formula
+import java.time.LocalDateTime
 import javax.persistence.*
 
 @Entity
@@ -22,11 +23,13 @@ class User(
     val lockedOutStatus: LockedOutStatus,
 
     @OneToMany(mappedBy = "user")
-    val firmRelationships: List<FirmUser>,
+    private val firmRelationships: List<FirmUser>,
 
-    @OneToOne
-    @JoinColumn(name = "id", nullable = true)
-    val userLastLogin: UserLastLogin?,
+    @Formula(select = "(select l.prior_login from crs_user_last_login l where l.usr_id = \${ta}.id)")
+    val lastLogin: LocalDateTime?,
+
+    @Column(name = "init_authentic")
+    val creationDate: LocalDateTime?,
 
     @Formula(select = "(select genxml(row(type), \"type\")::lvarchar from crs_type_of_user where usr_id = \${ta}.id)")
     private val categoriesXml: String?,
@@ -35,8 +38,10 @@ class User(
     private val profilesXml: String?,
 ) {
     val associatedFirms: List<Firm>
+        get() = firmAssociations.map { it.firm }
+
+    val firmAssociations: List<FirmUser>
         get() = firmRelationships.filter { it.isAssociated() && it.firm.status == UserStatus.ACTIVE }
-            .map { it.firm }
 
     val categories: List<String>
         get() = categoriesXml?.let {

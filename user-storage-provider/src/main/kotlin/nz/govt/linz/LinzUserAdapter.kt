@@ -1,5 +1,6 @@
 package nz.govt.linz
 
+import nz.govt.linz.jpa.FirmUser
 import nz.govt.linz.jpa.LockedOutStatus
 import nz.govt.linz.jpa.LoginType
 import nz.govt.linz.jpa.User
@@ -12,7 +13,10 @@ import org.keycloak.models.RoleModel
 import org.keycloak.models.UserModel
 import org.keycloak.storage.StorageId
 import org.keycloak.storage.adapter.AbstractUserAdapter
+import org.keycloak.util.JsonSerialization
 import org.slf4j.LoggerFactory
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.stream.Stream
 
 class LinzUserAdapter(session: KeycloakSession, realm: RealmModel, model: ComponentModel, private val user: User) :
@@ -73,6 +77,11 @@ class LinzUserAdapter(session: KeycloakSession, realm: RealmModel, model: Compon
 
     override fun getEmail(): String = user.emailAddress
 
+    override fun getCreatedTimestamp(): Long {
+        return user.creationDate?.atZone(ZoneId.systemDefault())?.toInstant()?.toEpochMilli()
+            ?: System.currentTimeMillis()
+    }
+
     override fun getFirstAttribute(name: String?): String? =
         attributes.getOrDefault(checkNotNull(name), emptyList()).let { if (it.isEmpty()) null else it.first() }
 
@@ -83,12 +92,29 @@ class LinzUserAdapter(session: KeycloakSession, realm: RealmModel, model: Compon
         add(UserModel.LAST_NAME, lastName)
         add("title", user.title)
         add("preferredName", user.preferredName)
-        add("loginType", user.loginType.name)
+        add("loginType", user.loginType.dbValue)
+        add("lastLogin", user.lastLogin?.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
+        add("firms", user.firmAssociations.toJson())
+        add("roles", JsonSerialization.writeValueAsString(user.categories))
+        add("profiles", JsonSerialization.writeValueAsString(user.profiles))
     }
+
+    // leaving this here if we want to make firms as groups - not really
+    //override fun getGroupsInternal(): Set<GroupModel> = user.associatedFirms.map { LinzGroupAdapter(it) }.toSet()
 
     override fun getRoleMappingsInternal(): Set<RoleModel> = roles
 
     override fun appendDefaultRolesToRoleMappings(): Boolean = false
 
     override fun appendDefaultGroups(): Boolean = false
+}
+
+private fun List<FirmUser>.toJson(): String? {
+    return JsonSerialization.writeValueAsString(map {
+        mapOf(
+            "id" to it.id.firmId,
+            "name" to it.firm.corporateName,
+            "privileges" to it.privileges
+        )
+    })
 }

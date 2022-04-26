@@ -17,6 +17,7 @@ COPY --from=builder --chown=1000:0 /opt/keycloak/providers/ /opt/keycloak/provid
 #COPY theme/ /opt/keycloak/themes/linz
 WORKDIR /opt/keycloak
 
+ENV PATH=$PATH:/opt/keycloak/bin
 ENV KEYCLOAK_ADMIN=admin
 ENV KEYCLOAK_ADMIN_PASSWORD=admin
 ENV KC_HOSTNAME=localhost
