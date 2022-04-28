@@ -9,7 +9,7 @@ import React, {
 import { IFirm, IUser, IUserContext } from '../model';
 import { AuthService } from '../services';
 
-const UserContext = React.createContext<IUserContext>({
+export const UserContext = React.createContext<IUserContext>({
   isLoading: true,
   isAuthenticated: false,
   user: undefined,
