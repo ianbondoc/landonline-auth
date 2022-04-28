@@ -13,6 +13,7 @@ export const FetchProvider: React.FC<PropsWithChildren<{
   const options: IncomingOptions = {
     ...commonOptions,
     // we need this so the XSRF-TOKEN would be included in request
+    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials
     credentials: 'include',
     // by default useFetch caches results we don't want that, let's just enable it when we need it
     cachePolicy: CachePolicies.NO_CACHE,

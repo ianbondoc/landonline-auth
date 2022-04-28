@@ -2,21 +2,26 @@
 
 ## Concerns
 
+- Keycloak image and configuration
 - User Storage Provider
-- Frontend Client Integration
-- Service Integration
+- Roles/Permission Mapping
+- Claims customization (make it lean)
+- User Info Endpoint
 - Theming
+- Frontend Client Integration (auth-js)
+- React Components (UserContext, Fetch, Auth/Noauth)
+- CORS (Frontend facing endpoints only)
+- CSRF/XSRF (Frontend facing endpoints only)
+- Service Integration
+- Spring Components (Configuration, Exception Handler)
 - Frontend -> Service Security
 - Service -> Service Security
-- Roles/Permission Mapping
-- React Components
-- Spring Components
-- CORS
-- CSRF/XSRF
-- Claims customization
-- User Info Endpoint
-- Token Verification
-- Password Change
-- Temporary Password (Required Action)
+- Authorization
+- Token Verification (signature and expiry)
+- Token Refresh ()
+- Firm Information
+- Password Change (via admin)
+- Temporary Password Change (via admin) (Required Action)
+- Required action via external (database)
 - Forgot Password
-- 
+- Remember Me
