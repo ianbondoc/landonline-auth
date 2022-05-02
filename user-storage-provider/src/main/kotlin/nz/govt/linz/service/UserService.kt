@@ -145,6 +145,10 @@ class UserService(private val database: Database) {
             .where().idEq(userId).update()
     }
 
+    fun shutdown() {
+        database.shutdown(true, false)
+    }
+
     companion object {
         const val ATTRIBUTE = "session.userService"
     }

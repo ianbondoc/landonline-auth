@@ -1,6 +1,5 @@
 package nz.govt.linz
 
-import io.ebean.Database
 import io.ebean.DatabaseFactory
 import io.ebean.config.DatabaseConfig
 import io.ebean.datasource.DataSourceConfig
@@ -23,14 +22,14 @@ class LinzUserStorageProviderFactory : UserStorageProviderFactory<LinzUserStorag
         System.err.println("CREATING LinzUserStorageProviderFactory")
     }
 
-    private lateinit var database: Database
+    private lateinit var userService: UserService
 
     override fun create(session: KeycloakSession?, model: ComponentModel?): LinzUserStorageProvider {
-        if (!this::database.isInitialized) {
-            database = createDatabase(checkNotNull(model).getDatabaseConfiguration())
+        if (!this::userService.isInitialized) {
+            userService = createUserService(checkNotNull(model).getDatabaseConfiguration())
         }
         System.err.println("LinzUserStorageProviderFactory.create")
-        session?.setAttribute(UserService.ATTRIBUTE, UserService(database))
+        session?.setAttribute(UserService.ATTRIBUTE, userService)
         return LinzUserStorageProvider(checkNotNull(session), checkNotNull(model))
     }
 
@@ -63,13 +62,13 @@ class LinzUserStorageProviderFactory : UserStorageProviderFactory<LinzUserStorag
     ) {
         if (newModel != oldModel) {
             System.err.println("Creating new database")
-            if (!this::database.isInitialized) {
-                database.shutdown(true, false)
+            if (!this::userService.isInitialized) {
+                userService.shutdown()
             }
             try {
-                database = createDatabase(checkNotNull(newModel).getDatabaseConfiguration())
+                userService = createUserService(checkNotNull(newModel).getDatabaseConfiguration())
             } catch (e: Exception) {
-                database = createDatabase(checkNotNull(oldModel).getDatabaseConfiguration())
+                userService = createUserService(checkNotNull(oldModel).getDatabaseConfiguration())
                 throw e
             }
         } else {
@@ -91,7 +90,7 @@ class LinzUserStorageProviderFactory : UserStorageProviderFactory<LinzUserStorag
         const val PROVIDER_ID = "linz-user-provider"
     }
 
-    private fun createDatabase(config: DatabaseConfiguration): Database {
+    private fun createUserService(config: DatabaseConfiguration): UserService {
         // DriverManager.registerDriver(IfxDriver())
         // somehow this is necessary here as provider libs (inside providers dir) are not automatically
         // recognized and drivers are not automatically registered
@@ -108,7 +107,7 @@ class LinzUserStorageProviderFactory : UserStorageProviderFactory<LinzUserStorag
             dbConfig.isDefaultServer = true
             dbConfig.name = "ifx"
             dbConfig.databasePlatform = InformixPlatform()
-        }.let { DatabaseFactory.create(it) }
+        }.let { DatabaseFactory.create(it) }.let { UserService(it) }
     }
 }
 
