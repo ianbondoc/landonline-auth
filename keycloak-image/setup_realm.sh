@@ -194,13 +194,13 @@ $KCADM create clients/$CID/protocol-mappers/models -r $REALM \
 # update frontend client
 #$KCADM update clients/$CID -r $REALM -s ...
 
-# create service client a
+# create service client a (bearer-only)
 CID=$($KCADM create clients -r $REALM -s clientId=search-service-a \
   -s bearerOnly=true -s secret=$SERVICE_CLIENT_SECRET_A -i)
 
-# create service client b
+# create service client b (confidential)
 CID=$($KCADM create clients -r $REALM -s clientId=search-service-b \
-  -s bearerOnly=true -s secret=$SERVICE_CLIENT_SECRET_B -i)
+  -s serviceAccountsEnabled=true -s secret=$SERVICE_CLIENT_SECRET_B -i)
 
 #$KCADM update clients/$CID -r $REALM -s secret=$SERVICE_CLIENT_SECRET
 

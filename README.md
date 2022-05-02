@@ -14,8 +14,8 @@
 - CSRF/XSRF (Frontend facing endpoints only)
 - Service Integration
 - Spring Components (Configuration, Exception Handler)
-- Frontend -> Service Security
-- Service -> Service Security
+- Frontend -> Service Security (public -> bearer only/confidential)
+- Service -> Service (requester should be confidential to get client_credentials grant https://www.appsdeveloperblog.com/keycloak-client-credentials-grant-example/)
 - Authorization
 - Token Verification (signature and expiry)
 - Token Refresh ()
