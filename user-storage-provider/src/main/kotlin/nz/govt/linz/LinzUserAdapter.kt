@@ -34,14 +34,20 @@ class LinzUserAdapter(session: KeycloakSession, realm: RealmModel, model: Compon
 
     override fun getRequiredActionsStream(): Stream<String> {
         log.info("getRequiredActionsStream: $session")
-        return if (user.lockedOutStatus == LockedOutStatus.MUST_CHANGE_PASSWORD_ON_NEXT_LOGIN) {
-            return Stream.of(UserModel.RequiredAction.UPDATE_PASSWORD.name)
-        } else Stream.empty()
+        val actions = mutableListOf<String>()
+        if (user.lockedOutStatus == LockedOutStatus.MUST_CHANGE_PASSWORD_ON_NEXT_LOGIN) {
+            actions.add(UserModel.RequiredAction.UPDATE_PASSWORD.name)
+        }
+        if (userService.otpRequiredactionEnabledUsers.contains(username)) {
+            actions.add(UserModel.RequiredAction.CONFIGURE_TOTP.name)
+        }
+        return actions.stream()
     }
 
     override fun addRequiredAction(action: String?) {
-        if (action == UserModel.RequiredAction.UPDATE_PASSWORD.name) {
-            userService.setRequiredChangePassword(user.id)
+        when (action) {
+            UserModel.RequiredAction.UPDATE_PASSWORD.name -> userService.setRequiredChangePassword(user.id)
+            UserModel.RequiredAction.CONFIGURE_TOTP.name -> userService.otpRequiredactionEnabledUsers.add(username)
         }
     }
 
@@ -51,6 +57,13 @@ class LinzUserAdapter(session: KeycloakSession, realm: RealmModel, model: Compon
 
     override fun removeRequiredAction(action: String?) {
         // since stored proc already removes update password status in db we just ignore this call
+        when(action) {
+            UserModel.RequiredAction.UPDATE_PASSWORD.name -> log.info("removeRequiredAction: $session, $action")
+            UserModel.RequiredAction.CONFIGURE_TOTP.name -> {
+                userService.otpRequiredactionEnabledUsers.remove(username)
+                userService.otpEnabledUsers.add(username)
+            }
+        }
         log.info("removeRequiredAction: $session, $action")
     }
 
@@ -97,6 +110,51 @@ class LinzUserAdapter(session: KeycloakSession, realm: RealmModel, model: Compon
         add("firms", user.firmAssociations.toJson())
         add("roles", JsonSerialization.writeValueAsString(user.categories))
         add("profiles", JsonSerialization.writeValueAsString(user.profiles))
+    }
+
+    override fun setSingleAttribute(name: String?, value: String?) {
+        // ignore
+        log.info("setSingleAttribute: $name=$value")
+    }
+
+    override fun setAttribute(name: String?, values: MutableList<String>?) {
+        // ignore
+        log.info("setAttribute: $name=$values")
+    }
+
+    override fun setUsername(username: String?) {
+        // ignore
+        log.info("setUsername: $username")
+    }
+
+    override fun setEnabled(enabled: Boolean) {
+        // ignore
+        log.info("setEnabled: $enabled")
+    }
+
+    override fun setCreatedTimestamp(timestamp: Long?) {
+        // ignore
+        log.info("setCreatedTimestamp: $timestamp")
+    }
+
+    override fun setFirstName(firstName: String?) {
+        // ignore
+        log.info("setFirstName: $firstName")
+    }
+
+    override fun setLastName(lastName: String?) {
+        // ignore
+        log.info("setLastName: $lastName")
+    }
+
+    override fun setEmail(email: String?) {
+        // ignore
+        log.info("setEmail: $email")
+    }
+
+    override fun setEmailVerified(verified: Boolean) {
+        // ignore
+        log.info("setEmailVerified: $verified")
     }
 
     // leaving this here if we want to make firms as groups - not really

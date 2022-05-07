@@ -20,6 +20,9 @@ class UserService(private val database: Database) {
 
     private val encryptionService = LegacyEncryptionService()
 
+    val otpEnabledUsers = mutableListOf<String>()
+    val otpRequiredactionEnabledUsers = mutableListOf<String>()
+
     fun authenticate(username: String, password: String): AuthStatus {
         log.info("Authenticating $username | $password")
 
