@@ -1,0 +1,10 @@
+services:
+  keycloak-auth:
+    image: landonline-auth-keycloak:latest
+    ports:
+      - "8080:8080"
+      - "3000:3000"
+  informix-db:
+    image: 725496895483.dkr.ecr.ap-southeast-2.amazonaws.com/step/landonline-dev-db:latest
+    ports:
+      - "9088:9088"
