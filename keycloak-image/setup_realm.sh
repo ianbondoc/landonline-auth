@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/bash
 
 #KEYCLOAK_HOME=/c/Users/ibondoc/code/tools/keycloak-17.0.1
 KEYCLOAK_HOME=/opt/keycloak

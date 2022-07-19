@@ -29,4 +29,6 @@ val setupRealm = tasks.register<Exec>("setupRealm") {
     commandLine("docker", "exec", "landonline-auth", "/tmp/keycloak/setup_realm.sh")
 }
 
-tasks.getByName("dockerRun").finalizedBy(setupRealm)
+// run setupRealm manually but first start the postgres db
+// docker run --rm --name keycloak-postgres -e POSTGRES_DB=keycloak -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -d -p 5432:5432 postgres:10.21-alpine
+// tasks.getByName("dockerRun").finalizedBy(setupRealm)
