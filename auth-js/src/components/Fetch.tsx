@@ -1,13 +1,19 @@
 import React, { PropsWithChildren } from 'react';
+
 import { CachePolicies, IncomingOptions, Provider } from 'use-http';
-import { useUserContext } from '../components';
-import { AuthService } from '../services';
+import { useUserContext } from './UserContext';
 
 export const FetchProvider: React.FC<PropsWithChildren<{
   baseUrl?: string;
   commonOptions?: IncomingOptions;
 }>> = ({ baseUrl, commonOptions = {}, children }) => {
-  const { isLoading, isAuthenticated, selectedFirmRef } = useUserContext();
+  const {
+    isLoading,
+    isAuthenticated,
+    user,
+    login,
+    selectedFirmRef,
+  } = useUserContext();
 
   const url = baseUrl || window.location.origin;
   const options: IncomingOptions = {
@@ -28,21 +34,11 @@ export const FetchProvider: React.FC<PropsWithChildren<{
         }
 
         if (!isLoading && isAuthenticated) {
-          // this doesn't mean we update the token every time, under the hood it tries to see if token
-          // is nearing its expiry and updates it when needed
-          try {
-            const x = await AuthService.updateToken();
-            console.log(`Refresh result: ${x}`);
-            headers = {
-              ...headers,
-              Authorization: `Bearer ${AuthService.getToken()}`,
-            };
-          } catch (e) {
-            // this could mean refresh token expired or we were logged out by server (or auth restarted)
-            console.log(e);
-            AuthService.login();
-          }
-
+          // we always assume token is valid (we rely on automaticSilentRenew)
+          headers = {
+            ...headers,
+            Authorization: `Bearer ${user?.accessToken}`,
+          };
           if (selectedFirmRef?.current) {
             headers = {
               ...headers,
@@ -54,9 +50,9 @@ export const FetchProvider: React.FC<PropsWithChildren<{
         return { ...options, headers };
       },
       response: async ({ response }) => {
-        // any 401 response should
-        if (AuthService.isAuthenticated() && response.status == 401) {
-          AuthService.login();
+        // any 401 response should just forward us to the login page
+        if (isAuthenticated && response.status == 401) {
+          await login();
         }
         return response;
       },
@@ -64,13 +60,9 @@ export const FetchProvider: React.FC<PropsWithChildren<{
   };
 
   return (
-    <>
-      {!isLoading && (
-        <Provider url={url} options={options}>
-          {children}
-        </Provider>
-      )}
-    </>
+    <Provider url={url} options={options}>
+      {children}
+    </Provider>
   );
 };
 

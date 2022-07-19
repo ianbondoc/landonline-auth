@@ -1,10 +1,9 @@
-import React, { PropsWithChildren } from "react";
-import { AuthService } from "../services";
+import React, { PropsWithChildren } from 'react';
+import { useUserContext } from './UserContext';
 
-export const Anonymous: React.FC<PropsWithChildren<{}>> = ({
-  children,
-}) => {
-  if (!AuthService.isAuthenticated()) {
+export const Anonymous: React.FC<PropsWithChildren<{}>> = ({ children }) => {
+  const { isAuthenticated } = useUserContext();
+  if (!isAuthenticated) {
     return <>{children}</>;
   } else {
     return null;

@@ -1,5 +1,5 @@
 {
-  "version": "0.26.0",
+  "version": "0.59.0",
   "license": "MIT",
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
@@ -52,7 +52,8 @@
     "typescript": "^3.9.10"
   },
   "dependencies": {
-    "keycloak-js": "*",
+    "oidc-client-ts": "^2.0.5",
+    "react-oidc-context": "^2.1.1",
     "use-http": "^1.0.26"
   },
   "peerDependencies": {

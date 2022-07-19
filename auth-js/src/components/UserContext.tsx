@@ -6,8 +6,8 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { AuthProvider, useAuth } from 'react-oidc-context';
 import { IFirm, IUser, IUserContext } from '../model';
-import { AuthService } from '../services';
 
 export const UserContext = React.createContext<IUserContext>({
   isLoading: true,
@@ -37,42 +37,89 @@ export function useUserContext(): IUserContext {
   return useContext(UserContext);
 }
 
-export const UserContextProvider: React.FC<PropsWithChildren<{}>> = ({
+export interface OidcConfig {
+  issuerUri: string;
+  clientId: string;
+  postLoginUri: string;
+  postLogoutUri: string;
+}
+
+export const UserContextProvider: React.FC<PropsWithChildren<OidcConfig>> = ({
+  issuerUri,
+  clientId,
+  postLoginUri,
+  postLogoutUri,
   children,
 }) => {
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(
-    AuthService.isAuthenticated()
+  const oidcConfig = {
+    authority: issuerUri,
+    client_id: clientId,
+    redirect_uri: postLoginUri,
+    post_logout_redirect_uri: postLogoutUri,
+    // we'll just automatically renew token to be simple
+    // automaticSilentRenew: false,
+    loadUserInfo: true,
+    // revokeTokensOnSignout: true,
+    onSigninCallback: async () => {
+      // this is to remove the query params of on callback
+      window.history.replaceState({}, document.title, window.location.pathname);
+    },
+  };
+
+  return (
+    <AuthProvider {...oidcConfig}>
+      <UserContextAdapter>{children}</UserContextAdapter>
+    </AuthProvider>
   );
+};
+
+// unfortunately the oidc-client-ts library converts a single element array in user profile into an object
+// we handle that behavior to be consistent and always produce an array
+const normalizeArray = (something: any) =>
+  Array.isArray(something) ? something : [something];
+
+const UserContextAdapter: React.FC<PropsWithChildren<{}>> = ({ children }) => {
+  const auth = useAuth();
+
   const [user, setUser] = useState<IUser>();
   const [selectedFirm, setSelectedFirm] = useState<IFirm>();
   const selectedFirmRef = useRef<IFirm>();
-  const [error, setError] = useState<any>();
 
   useEffect(() => {
-    if (AuthService.isAuthenticated()) {
-      setIsAuthenticated(true);
-      setIsLoading(false);
-    } else {
-      AuthService.initKeycloak()
-        .then(authenticated => {
-          setIsAuthenticated(authenticated);
-          setIsLoading(false);
-        })
-        .catch(error => setError(error));
-    }
-  }, []);
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      const fetchUserInfo = async () => AuthService.getUserInfo();
-      fetchUserInfo()
-        .then(userInfo => setUser(userInfo))
-        .catch(error => setError(error));
+    const userProfile = auth.user?.profile;
+    if (auth.isAuthenticated && userProfile) {
+      setUser({
+        id: userProfile.id,
+        givenNames: userProfile.givenNames,
+        surname: userProfile.surname,
+        email: userProfile.email,
+        preferredName: userProfile.preferredName,
+        firms: normalizeArray(userProfile.firms),
+        loginType: userProfile.loginType,
+        roles: normalizeArray(userProfile.roles),
+        profiles: normalizeArray(userProfile.profiles),
+        lastLogin: userProfile.lastLogin,
+        accessToken: auth.user?.access_token,
+      } as IUser);
     } else {
       setUser(undefined);
     }
-  }, [isAuthenticated]);
+  }, [auth.isAuthenticated, auth.user]);
+
+  // for now no need to implement this notification - just a nice to have
+  // useEffect(() => {
+  //   // the `return` is important - addAccessTokenExpiring() returns a cleanup function
+  //   return auth.events.addAccessTokenExpiring(async () => {
+  //     if (window.confirm("You're about to be signed out due to inactivity. Press continue to stay signed in.")) {
+  //       try {
+  //         await auth.signinSilent();
+  //       } catch (e) {
+  //         console.warn('Failed to refresh token', e);
+  //         await auth.signinRedirect();
+  //       }
+  //     }
+  //   })
+  // }, [auth.events, auth.signinSilent])
 
   useEffect(() => {
     // User data is still loading
@@ -135,11 +182,11 @@ export const UserContextProvider: React.FC<PropsWithChildren<{}>> = ({
   );
 
   const userContext: IUserContext = {
-    isLoading,
-    isAuthenticated,
-    error,
-    login: AuthService.login,
-    logout: AuthService.logout,
+    isLoading: auth.isLoading,
+    isAuthenticated: auth.isAuthenticated,
+    error: auth.error,
+    login: auth.signinRedirect,
+    logout: auth.signoutRedirect,
     user,
     selectedFirm,
     selectedFirmRef,
@@ -147,7 +194,6 @@ export const UserContextProvider: React.FC<PropsWithChildren<{}>> = ({
     isInternal,
     hasAnyPrivilege,
   };
-
   return (
     <UserContext.Provider value={userContext}>{children}</UserContext.Provider>
   );
