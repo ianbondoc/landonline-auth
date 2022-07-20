@@ -21,7 +21,6 @@ export const UserContext = React.createContext<IUserContext>({
     throw Error();
   },
   selectedFirm: undefined,
-  selectedFirmRef: undefined,
   changeFirm: () => {
     throw Error();
   },
@@ -99,7 +98,6 @@ const UserContextAdapter: React.FC<PropsWithChildren<{}>> = ({ children }) => {
         roles: normalizeArray(userProfile.roles),
         profiles: normalizeArray(userProfile.profiles),
         lastLogin: userProfile.lastLogin,
-        accessToken: auth.user?.access_token,
       } as IUser);
     } else {
       setUser(undefined);
@@ -187,9 +185,9 @@ const UserContextAdapter: React.FC<PropsWithChildren<{}>> = ({ children }) => {
     error: auth.error,
     login: auth.signinRedirect,
     logout: auth.signoutRedirect,
+    accessToken: auth.user?.access_token,
     user,
     selectedFirm,
-    selectedFirmRef,
     changeFirm,
     isInternal,
     hasAnyPrivilege,

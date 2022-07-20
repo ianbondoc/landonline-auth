@@ -1,21 +1,43 @@
-import React, { PropsWithChildren } from 'react';
+import React, { PropsWithChildren, useEffect, useRef } from 'react';
 
 import { CachePolicies, IncomingOptions, Provider } from 'use-http';
 import { useUserContext } from './UserContext';
 
-export const FetchProvider: React.FC<PropsWithChildren<{
+type FetchProps = PropsWithChildren<{
   baseUrl?: string;
   commonOptions?: IncomingOptions;
-}>> = ({ baseUrl, commonOptions = {}, children }) => {
+}>;
+
+export const FetchProvider: React.FC<FetchProps> = ({
+  baseUrl = window.location.origin,
+  commonOptions = {},
+  children,
+}) => {
   const {
-    isLoading,
     isAuthenticated,
-    user,
+    accessToken,
+    selectedFirm,
     login,
-    selectedFirmRef,
   } = useUserContext();
 
-  const url = baseUrl || window.location.origin;
+  // we use refs here because Provider unfortunately use "useMemo" for the options and state changes are not recognized
+  // within the interceptor
+  const isAuthenticatedRef = useRef(isAuthenticated);
+  const accessTokenRef = useRef(accessToken);
+  const selectedFirmRef = useRef(selectedFirm);
+
+  useEffect(() => {
+    isAuthenticatedRef.current = isAuthenticated;
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    accessTokenRef.current = accessToken;
+  }, [accessToken]);
+
+  useEffect(() => {
+    selectedFirmRef.current = selectedFirm;
+  }, [selectedFirm]);
+
   const options: IncomingOptions = {
     ...commonOptions,
     // we need this so the XSRF-TOKEN would be included in request
@@ -33,11 +55,11 @@ export const FetchProvider: React.FC<PropsWithChildren<{
           headers = { ...headers, 'X-XSRF-TOKEN': xsrfToken };
         }
 
-        if (!isLoading && isAuthenticated) {
+        if (accessTokenRef.current) {
           // we always assume token is valid (we rely on automaticSilentRenew)
           headers = {
             ...headers,
-            Authorization: `Bearer ${user?.accessToken}`,
+            Authorization: `Bearer ${accessTokenRef.current}`,
           };
           if (selectedFirmRef?.current) {
             headers = {
@@ -51,7 +73,7 @@ export const FetchProvider: React.FC<PropsWithChildren<{
       },
       response: async ({ response }) => {
         // any 401 response should just forward us to the login page
-        if (isAuthenticated && response.status == 401) {
+        if (isAuthenticatedRef.current && response.status == 401) {
           await login();
         }
         return response;
@@ -60,7 +82,7 @@ export const FetchProvider: React.FC<PropsWithChildren<{
   };
 
   return (
-    <Provider url={url} options={options}>
+    <Provider url={baseUrl} options={options}>
       {children}
     </Provider>
   );

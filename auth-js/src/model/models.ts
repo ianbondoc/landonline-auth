@@ -1,7 +1,5 @@
 // these interfaces were copied from Lui to promote backward compatibility
 
-import { MutableRefObject } from 'react';
-
 export interface IUser {
   id: string;
   givenNames: string;
@@ -13,7 +11,6 @@ export interface IUser {
   roles: string[];
   profiles: string[];
   lastLogin?: string;
-  accessToken?: string
 }
 
 export interface IFirm {
@@ -28,9 +25,9 @@ export interface IUserContext {
   error?: any;
   login: () => Promise<void>;
   logout: () => Promise<void>;
+  accessToken?: string,
   user?: IUser;
   selectedFirm?: IFirm;
-  selectedFirmRef?: MutableRefObject<IFirm | undefined>;
   changeFirm: (firmId: string) => void;
   isInternal: () => boolean;
   hasAnyPrivilege: (privileges: string[]) => boolean;
